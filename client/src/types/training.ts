@@ -1,3 +1,9 @@
+export interface ExerciseStep {
+  instruction: string;
+  solution: string;
+  validationCommand?: string;
+}
+
 export interface Exercise {
   id: string;
   question: string;
@@ -5,6 +11,8 @@ export interface Exercise {
   hints: string[];
   solution: string;
   validationCommand?: string;
+  isStepByStep?: boolean;
+  steps?: ExerciseStep[];
 }
 
 export interface BranchNode {

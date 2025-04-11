@@ -8,10 +8,7 @@ import {
   Box,
   Link,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+
   CircularProgress,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
@@ -179,19 +176,6 @@ const Register: React.FC = () => {
               helperText={errors.confirmPassword}
             />
 
-            <FormControl fullWidth margin="normal">
-              <InputLabel id="role-label">Role</InputLabel>
-              <Select
-                labelId="role-label"
-                id="role"
-                value={formData.role}
-                label="Role"
-                onChange={handleRoleChange}
-              >
-                <MenuItem value="student">Student</MenuItem>
-                <MenuItem value="lecturer">Lecturer</MenuItem>
-              </Select>
-            </FormControl>
 
             <Button
               type="submit"

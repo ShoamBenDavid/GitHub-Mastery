@@ -7,7 +7,7 @@ export interface RegisterData {
   email: string;
   password: string;
   confirmPassword?: string;  // Optional since it's only used in the form
-  role: 'student' | 'lecturer';
+  role: 'student' | 'lecturer' | 'admin';
 }
 
 export interface LoginData {

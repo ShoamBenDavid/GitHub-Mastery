@@ -6,7 +6,10 @@ import LearningHub from './components/Learning/LearningHub';
 import ModuleList from './components/Training/ModuleList';
 import ModuleViewer from './components/Training/ModuleViewer';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import AdminRoute from './components/Auth/AdminRoute';
 import ResetPassword from './components/Auth/ResetPassword';
+import AdminDashboard from './components/Admin/AdminDashboard';
+import AboutUs from './pages/AboutUs';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -15,6 +18,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/about" element={<AboutUs />} />
       <Route path="/learn" element={
         <ProtectedRoute>
           <LearningHub />
@@ -29,6 +33,11 @@ const AppRoutes: React.FC = () => {
         <ProtectedRoute>
           <ModuleViewer />
         </ProtectedRoute>
+      } />
+      <Route path="/admin" element={
+        <AdminRoute>
+          <AdminDashboard />
+        </AdminRoute>
       } />
     </Routes>
   );

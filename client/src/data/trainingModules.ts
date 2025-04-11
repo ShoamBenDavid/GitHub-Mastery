@@ -30,26 +30,61 @@ Git is a distributed version control system that helps you track changes in your
       {
         id: 'init-repo',
         question: 'Initialize a Git Repository',
-        description: 'Create a new directory and initialize it as a Git repository.',
+        description: 'Follow the steps to create a new directory and initialize it as a Git repository.',
         hints: [
-          'Use mkdir to create a directory',
-          'Use cd to change into the directory',
-          'Use git init to initialize the repository'
+          'Make sure to use the exact directory name "my-project" for validation to pass',
+          'Use the proper Git command to initialize a repository'
         ],
         solution: 'mkdir my-project && cd my-project && git init',
-        validationCommand: 'test -d .git && echo "Success!" || echo "Failed!"'
+        validationCommand: 'test -d .git && echo "Success!" || echo "Failed!"',
+        isStepByStep: true,
+        steps: [
+          {
+            instruction: 'Create a directory named "my-project"',
+            solution: 'mkdir my-project',
+            validationCommand: 'test -d my-project && echo "Success!" || echo "Failed!"'
+          },
+          {
+            instruction: 'Navigate into the "my-project" directory',
+            solution: 'cd my-project',
+            validationCommand: 'test "$(basename $(pwd))" = "my-project" && echo "Success!" || echo "Failed!"'
+          },
+          {
+            instruction: 'Initialize the directory as a Git repository',
+            solution: 'git init',
+            validationCommand: 'test -d .git && echo "Success!" || echo "Failed!"'
+          }
+        ]
       },
       {
         id: 'first-commit',
         question: 'Make Your First Commit',
         description: 'Create a file, stage it, and commit it to the repository.',
         hints: [
-          'Create a file with some content',
-          'Use git add to stage the file',
-          'Use git commit with a message'
+          'Use echo "# My Project" > README.md to create a file with exactly this content',
+          'Use git add README.md to stage the file',
+          'Use git commit -m "Initial commit" for your commit message'
         ],
         solution: 'echo "# My Project" > README.md && git add README.md && git commit -m "Initial commit"',
-        validationCommand: 'git log --oneline | grep "Initial commit" && echo "Success!" || echo "Failed!"'
+        validationCommand: 'git log --oneline | grep "Initial commit" && echo "Success!" || echo "Failed!"',
+        isStepByStep: true,
+        steps: [
+          {
+            instruction: 'Create a README.md file with the exact content "# My Project"',
+            solution: 'echo "# My Project" > README.md',
+            validationCommand: 'test -f README.md && grep -q "# My Project" README.md && echo "Success!" || echo "Failed!"'
+          },
+          {
+            instruction: 'Stage the README.md file',
+            solution: 'git add README.md',
+            validationCommand: 'git status | grep "new file:.*README.md" && echo "Success!" || echo "Failed!"'
+          },
+          {
+            instruction: 'Commit the changes with a message "Initial commit"',
+            solution: 'git commit -m "Initial commit"',
+            validationCommand: 'git log --oneline | grep "Initial commit" && echo "Success!" || echo "Failed!"'
+          }
+        ]
       }
     ],
     difficulty: 'beginner',

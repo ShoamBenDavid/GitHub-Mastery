@@ -61,10 +61,10 @@ const Home: React.FC = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(45deg, #f5f5f5 30%, #ffffff 90%)',
+        background: '#0d1117', // Dark GitHub background
         display: 'flex',
         flexDirection: 'column',
-        pb: '100px',
+        pb: isAuthenticated ? '0' : '100px',
       }}
     >
       <Container maxWidth="lg" sx={{ flexGrow: 1, pt: 4 }}>
@@ -93,7 +93,7 @@ const Home: React.FC = () => {
             gutterBottom
             sx={{
               fontWeight: 800,
-              background: 'linear-gradient(45deg, #2196f3 30%, #f50057 90%)',
+              background: 'linear-gradient(45deg, #f05133 30%, #6e5494 90%)', // Git orange to GitHub purple
               backgroundClip: 'text',
               textFillColor: 'transparent',
               WebkitBackgroundClip: 'text',
@@ -106,7 +106,7 @@ const Home: React.FC = () => {
           <Typography
             variant="h5"
             sx={{
-              color: 'text.secondary',
+              color: '#e6edf3', // Light GitHub text color
               mb: 4,
               maxWidth: '800px',
               mx: 'auto',
@@ -129,10 +129,13 @@ const Home: React.FC = () => {
                 py: 1.5,
                 fontSize: '1.1rem',
                 textTransform: 'none',
-                boxShadow: theme.shadows[4],
+                backgroundColor: '#f05133', // Git orange
+                color: 'white',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: theme.shadows[8],
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                  backgroundColor: '#c41e3a', // Darker Git red
                   transition: 'all 0.3s ease',
                 },
               }}
@@ -151,9 +154,13 @@ const Home: React.FC = () => {
                 py: 1.5,
                 fontSize: '1.1rem',
                 textTransform: 'none',
+                borderColor: '#30363d',
+                color: '#e6edf3',
                 '&:hover': {
                   transform: 'translateY(-2px)',
                   transition: 'all 0.3s ease',
+                  borderColor: '#58a6ff',
+                  backgroundColor: 'rgba(88, 166, 255, 0.1)',
                 },
               }}
             >
@@ -173,10 +180,9 @@ const Home: React.FC = () => {
                   borderRadius: '16px',
                   overflow: 'hidden',
                   transition: 'all 0.3s ease',
-                  background: `linear-gradient(45deg, ${feature.color}50 0%, ${feature.color}20 100%)`,
+                  background: '#161b22', // GitHub dark paper background
                   backdropFilter: 'blur(10px)',
-                  border: '1px solid',
-                  borderColor: 'divider',
+                  border: '1px solid #30363d', // GitHub border color
                   animation: 'slideUp 0.5s ease-out forwards',
                   animationDelay: `${index * 0.2}s`,
                   opacity: 0,
@@ -192,7 +198,7 @@ const Home: React.FC = () => {
                   },
                   '&:hover': {
                     transform: 'translateY(-8px)',
-                    boxShadow: theme.shadows[8],
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                   },
                   cursor: 'pointer',
                 }}
@@ -212,8 +218,8 @@ const Home: React.FC = () => {
                       mb: 2,
                       p: 2,
                       borderRadius: '50%',
-                      background: 'white',
-                      boxShadow: theme.shadows[2],
+                      background: '#0d1117', // Dark background
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
                     }}
                   >
                     {feature.icon}
@@ -222,12 +228,12 @@ const Home: React.FC = () => {
                     variant="h5"
                     component="h2"
                     gutterBottom
-                    sx={{ fontWeight: 600, mb: 2 }}
+                    sx={{ fontWeight: 600, mb: 2, color: '#e6edf3' }} // Light text
                   >
                     {feature.title}
                   </Typography>
                   <Typography
-                    color="text.secondary"
+                    color="#8b949e" // GitHub secondary text color
                     sx={{ mb: 3, lineHeight: 1.6 }}
                   >
                     {feature.description}
@@ -238,9 +244,12 @@ const Home: React.FC = () => {
                       mt: 'auto',
                       borderRadius: '28px',
                       textTransform: 'none',
+                      borderColor: '#30363d', // GitHub border color
+                      color: '#58a6ff', // GitHub bright blue
                       '&:hover': {
                         transform: 'translateX(4px)',
                         transition: 'transform 0.3s ease',
+                        borderColor: '#58a6ff',
                       },
                     }}
                     endIcon={<ArrowForwardIcon />}
@@ -254,77 +263,80 @@ const Home: React.FC = () => {
         </Grid>
       </Container>
 
-      {/* Call to Action Bottom Bar */}
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: 'linear-gradient(45deg, #2196f3 30%, #1976d2 90%)',
-          color: 'white',
-          py: 2,
-          zIndex: 1000,
-          boxShadow: '0px -2px 10px rgba(0,0,0,0.1)',
-        }}
-      >
-        <Container maxWidth="lg">
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 2,
-            }}
-          >
-            <Box sx={{ flex: 1, minWidth: '200px' }}>
-              <Typography
-                variant="h5"
-                component="h2"
-                sx={{
-                  fontWeight: 700,
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                }}
-              >
-                Ready to Begin Your Git Journey?
-              </Typography>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  opacity: 0.9,
-                }}
-              >
-                Start mastering Git today
-              </Typography>
-            </Box>
-            <Button
-              variant="contained"
-              size="large"
-              component={RouterLink}
-              to="/training"
-              sx={{
-                borderRadius: '28px',
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
-                textTransform: 'none',
-                backgroundColor: 'white',
-                color: 'primary.main',
-                '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.9)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: theme.shadows[8],
-                },
-                boxShadow: theme.shadows[4],
+      {/* Call to Action Bottom Bar - Only visible for unauthenticated users */}
+      {!isAuthenticated && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'linear-gradient(45deg, #f05133 30%, #c41e3a 90%)', // Git orange to dark red
+            color: 'white',
+            py: 2,
+            zIndex: 1000,
+            boxShadow: '0px -2px 10px rgba(0,0,0,0.3)',
+          }}
+        >
+          <Container maxWidth="lg">
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 2,
               }}
-              endIcon={<ArrowForwardIcon />}
             >
-              Get Started
-            </Button>
-          </Box>
-        </Container>
-      </Box>
+              <Box sx={{ flex: 1, minWidth: '200px' }}>
+                <Typography
+                  variant="h5"
+                  component="h2"
+                  sx={{
+                    fontWeight: 700,
+                    textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  Ready to Begin Your Git Journey?
+                </Typography>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    opacity: 0.9,
+                  }}
+                >
+                  Start mastering Git today
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                size="large"
+                component={RouterLink}
+                to="/training"
+                sx={{
+                  borderRadius: '28px',
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1.1rem',
+                  textTransform: 'none',
+                  backgroundColor: '#0d1117', // Dark background
+                  color: '#e6edf3', // Light text
+                  border: '1px solid #30363d',
+                  '&:hover': {
+                    backgroundColor: '#161b22',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                  },
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                }}
+                endIcon={<ArrowForwardIcon />}
+              >
+                Get Started
+              </Button>
+            </Box>
+          </Container>
+        </Box>
+      )}
     </Box>
   );
 };
