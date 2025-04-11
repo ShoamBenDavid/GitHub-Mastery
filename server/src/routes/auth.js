@@ -11,55 +11,130 @@ const router = express.Router();
 // Register route
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, role } = req.body;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [
-        { email: email.toLowerCase() },
-        { username: username.toLowerCase() }
-      ]
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ 
-        message: existingUser.email === email.toLowerCase() 
-          ? 'Email already registered' 
-          : 'Username already taken'
-      });
+    console.log('Registration request received');
+    const { username, email, password, role, securityQuestions } = req.body;
+    
+    // Debug logging for security questions
+    console.log('Security questions provided in request:', !!securityQuestions);
+    if (securityQuestions) {
+      console.log('Security question fields:', Object.keys(securityQuestions));
+      console.log('Teacher name provided:', !!securityQuestions.teacherName);
+      console.log('Grandmother name provided:', !!securityQuestions.grandmotherName);
+    }
+    
+    // Validation checks
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Create new user
-    const user = new User({
-      username: username.toLowerCase(),
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    // Check if user already exists
+    const userExists = await User.findOne({ $or: [{ email }, { username }] });
+    if (userExists) {
+      return res.status(400).json({ message: 'User with this email or username already exists' });
+    }
+
+    // Create initial user data
+    const userData = {
+      username,
       email: email.toLowerCase(),
       password,
-      role
-    });
+      role: role || 'student'
+    };
 
-    // Save user to database
-    await user.save();
+    // Add security questions if provided
+    if (securityQuestions && 
+        typeof securityQuestions.teacherName === 'string' && 
+        typeof securityQuestions.grandmotherName === 'string' &&
+        securityQuestions.teacherName.trim() &&
+        securityQuestions.grandmotherName.trim()) {
+      
+      console.log('Creating security questions structure');
+      
+      // Create security questions structure
+      userData.securityQuestions = {
+        teacherName: {
+          question: "What is your first grade teacher's name?",
+          answer: securityQuestions.teacherName.trim()
+        },
+        grandmotherName: {
+          question: "What is your grandmother's name?",
+          answer: securityQuestions.grandmotherName.trim()
+        }
+      };
+      
+      console.log('Security questions added to userData');
+    } else {
+      console.log('No valid security questions provided');
+    }
 
-    // Create JWT token
+    // Create and save user with mongoose
+    const user = new User(userData);
+    
+    // Log the user object before saving
+    console.log('User object before saving has securityQuestions:', 
+      !!user.securityQuestions, 
+      user.securityQuestions ? Object.keys(user.securityQuestions) : []
+    );
+    
+    // Save the user to the database
+    const savedUserDoc = await user.save();
+    
+    // Immediately query the database for the user to verify storage
+    const verifiedUser = await User.findById(savedUserDoc._id);
+    
+    console.log('User saved with ID:', verifiedUser._id.toString());
+    console.log('Verified user has securityQuestions:', !!verifiedUser.securityQuestions);
+    
+    if (verifiedUser.securityQuestions) {
+      console.log('Security questions structure in database:', 
+        JSON.stringify(verifiedUser.securityQuestions, (key, value) => 
+          key === 'answer' ? '[REDACTED]' : value, 2)
+      );
+      
+      // Double check all required fields exist
+      const hasTeacherQuestion = verifiedUser.securityQuestions.teacherName && 
+                                verifiedUser.securityQuestions.teacherName.question;
+      const hasTeacherAnswer = verifiedUser.securityQuestions.teacherName && 
+                              verifiedUser.securityQuestions.teacherName.answer;
+      const hasGrandmotherQuestion = verifiedUser.securityQuestions.grandmotherName && 
+                                    verifiedUser.securityQuestions.grandmotherName.question;
+      const hasGrandmotherAnswer = verifiedUser.securityQuestions.grandmotherName && 
+                                  verifiedUser.securityQuestions.grandmotherName.answer;
+      
+      console.log('Security questions completeness check:', {
+        teacherQuestion: hasTeacherQuestion,
+        teacherAnswer: hasTeacherAnswer,
+        grandmotherQuestion: hasGrandmotherQuestion,
+        grandmotherAnswer: hasGrandmotherAnswer
+      });
+    } else {
+      console.warn('WARNING: Security questions not found in saved user');
+    }
+
+    // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: verifiedUser._id, role: verifiedUser.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     res.status(201).json({
-      message: 'User created successfully',
+      message: 'User registered successfully',
       token,
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role
+        id: verifiedUser._id,
+        username: verifiedUser.username,
+        email: verifiedUser.email,
+        role: verifiedUser.role
       }
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Error creating user' });
+    res.status(500).json({ message: 'Registration failed', error: error.message });
   }
 });
 
@@ -329,6 +404,151 @@ router.post('/reset-password/:token', async (req, res) => {
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ message: 'Error resetting password' });
+  }
+});
+
+// Reset password with security questions
+router.post('/reset-by-security-questions', async (req, res) => {
+  try {
+    console.log('Received reset by security questions request');
+    const { email, securityAnswers, newPassword } = req.body;
+
+    // Log request data for debugging (without displaying sensitive data)
+    console.log('Reset request email:', email);
+    console.log('Security answers provided:', JSON.stringify({
+      teacherName: securityAnswers?.teacherName ? 'provided' : 'missing',
+      grandmotherName: securityAnswers?.grandmotherName ? 'provided' : 'missing'
+    }));
+    console.log('New password provided:', newPassword ? 'Yes' : 'No');
+
+    // Validate required fields
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    
+    if (!securityAnswers) {
+      return res.status(400).json({ message: 'Security answers are required' });
+    }
+    
+    if (!newPassword) {
+      return res.status(400).json({ message: 'New password is required' });
+    }
+
+    // Validate security answers structure
+    if (!securityAnswers.teacherName || !securityAnswers.grandmotherName) {
+      console.log('Security answers incomplete:', {
+        hasTeacherName: !!securityAnswers.teacherName,
+        hasGrandmotherName: !!securityAnswers.grandmotherName
+      });
+      return res.status(400).json({ 
+        message: 'Both security answers must be provided'
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      console.log('No user found with email:', email);
+      return res.status(404).json({ message: 'No account with that email exists' });
+    }
+
+    // Log user document details to diagnose issues
+    console.log('User found with fields:', Object.keys(user._doc || user));
+    console.log('User has securityQuestions:', !!user.securityQuestions);
+    
+    // Detailed check for security questions structure
+    if (!user.securityQuestions) {
+      console.log('Security questions not found in user document');
+      return res.status(400).json({ 
+        message: 'Security questions not set up for this account' 
+      });
+    }
+    
+    // Log the exact structure of security questions to diagnose the issue
+    console.log('Security questions structure in DB:', 
+      JSON.stringify(user.securityQuestions, (key, value) => 
+        key === 'answer' ? '[REDACTED]' : value, 2)
+    );
+    
+    // Check for specific object structure to catch MongoDB issues
+    const hasTeacherName = user.securityQuestions && user.securityQuestions.teacherName;
+    const hasGrandmotherName = user.securityQuestions && user.securityQuestions.grandmotherName;
+    
+    if (!hasTeacherName || !hasGrandmotherName) {
+      console.log('Security questions missing required properties:', {
+        hasTeacherName,
+        hasGrandmotherName
+      });
+      return res.status(400).json({ 
+        message: 'Security questions not properly set up (missing required fields)'
+      });
+    }
+    
+    // Check if answer fields exist in security questions
+    const hasTeacherAnswer = hasTeacherName && user.securityQuestions.teacherName.answer;
+    const hasGrandmotherAnswer = hasGrandmotherName && user.securityQuestions.grandmotherName.answer;
+    
+    if (!hasTeacherAnswer || !hasGrandmotherAnswer) {
+      console.log('Security question answers missing:', {
+        hasTeacherAnswer,
+        hasGrandmotherAnswer
+      });
+      return res.status(400).json({ 
+        message: 'Security question answers not set up properly'
+      });
+    }
+
+    // Validate security answers (case insensitive comparison)
+    const isTeacherAnswerCorrect = 
+      user.securityQuestions.teacherName.answer.toLowerCase() === 
+      securityAnswers.teacherName.toLowerCase();
+    
+    const isGrandmotherAnswerCorrect = 
+      user.securityQuestions.grandmotherName.answer.toLowerCase() === 
+      securityAnswers.grandmotherName.toLowerCase();
+
+    console.log('Security answer validation:', {
+      teacherAnswer: isTeacherAnswerCorrect ? 'correct' : 'incorrect',
+      grandmotherAnswer: isGrandmotherAnswerCorrect ? 'correct' : 'incorrect'
+    });
+
+    if (!isTeacherAnswerCorrect || !isGrandmotherAnswerCorrect) {
+      return res.status(400).json({ 
+        message: 'Security question answers are incorrect'
+      });
+    }
+
+    // Set new password
+    user.password = newPassword;
+    // Clear any existing reset tokens
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    console.log('Password updated successfully for user:', email);
+
+    // Create new JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      message: 'Password reset successful',
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Security question reset error:', error);
+    res.status(500).json({ 
+      message: 'Error resetting password with security questions',
+      error: error.message 
+    });
   }
 });
 

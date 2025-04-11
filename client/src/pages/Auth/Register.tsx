@@ -8,11 +8,16 @@ import {
   Box,
   Link,
   Alert,
-
   CircularProgress,
+  Divider,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { authService, RegisterData } from '../../services/authService';
+
+interface SecurityQuestionErrors {
+  teacherName?: string;
+  grandmotherName?: string;
+}
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -22,17 +27,40 @@ const Register: React.FC = () => {
     password: '',
     confirmPassword: '',
     role: 'student',
+    securityQuestions: {
+      teacherName: '',
+      grandmotherName: '',
+    }
   });
-  const [errors, setErrors] = useState<Partial<RegisterData>>({});
+  const [errors, setErrors] = useState<Partial<RegisterData & SecurityQuestionErrors>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
-    if (errors[name as keyof RegisterData]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
+    
+    if (name === 'teacherName' || name === 'grandmotherName') {
+      // Handle security question fields
+      setFormData((prev) => ({
+        ...prev,
+        securityQuestions: {
+          ...prev.securityQuestions!,
+          [name]: value
+        }
+      }));
+      
+      // Clear error when user starts typing
+      if (errors[name]) {
+        setErrors((prev) => ({ ...prev, [name]: '' }));
+      }
+    } else {
+      // Handle regular fields
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      
+      // Clear error when user starts typing
+      if (errors[name as keyof RegisterData]) {
+        setErrors((prev) => ({ ...prev, [name]: '' }));
+      }
     }
   };
 
@@ -41,7 +69,7 @@ const Register: React.FC = () => {
   };
 
   const validateForm = () => {
-    const newErrors: Partial<RegisterData> = {};
+    const newErrors: Partial<RegisterData & SecurityQuestionErrors> = {};
 
     if (!formData.username.trim()) {
       newErrors.username = 'Username is required';
@@ -63,6 +91,15 @@ const Register: React.FC = () => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
+    // Validate security questions
+    if (!formData.securityQuestions?.teacherName.trim()) {
+      newErrors.teacherName = 'Answer is required';
+    }
+
+    if (!formData.securityQuestions?.grandmotherName.trim()) {
+      newErrors.grandmotherName = 'Answer is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -77,7 +114,29 @@ const Register: React.FC = () => {
 
     try {
       setLoading(true);
+      
+      // Create a clean copy without confirmPassword and log it
       const { confirmPassword, ...registerData } = formData;
+      
+      // Validate security questions specifically
+      if (!registerData.securityQuestions?.teacherName.trim() || 
+          !registerData.securityQuestions?.grandmotherName.trim()) {
+        console.warn('Security questions incomplete - registration might fail later');
+      } else {
+        console.log('Security questions provided and valid');
+      }
+      
+      // Log what we're sending
+      console.log('Sending registration with data:', {
+        username: registerData.username,
+        email: registerData.email,
+        securityQuestionsProvided: !!registerData.securityQuestions,
+        securityQuestionsValid: 
+          !!registerData.securityQuestions?.teacherName.trim() && 
+          !!registerData.securityQuestions?.grandmotherName.trim()
+      });
+      
+      // Perform registration
       await authService.register(registerData);
       navigate('/login');
     } catch (err: any) {
@@ -92,6 +151,7 @@ const Register: React.FC = () => {
       <Box
         sx={{
           marginTop: 8,
+          marginBottom: 8,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -176,6 +236,38 @@ const Register: React.FC = () => {
               helperText={errors.confirmPassword}
             />
 
+            <Divider sx={{ my: 3 }} />
+            
+            <Typography variant="h6" gutterBottom>
+              Security Questions
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              These questions will help you recover your account if you forget your password.
+            </Typography>
+
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="What is your first grade teacher's name?"
+              name="teacherName"
+              value={formData.securityQuestions?.teacherName || ''}
+              onChange={handleInputChange}
+              error={!!errors.teacherName}
+              helperText={errors.teacherName || 'This answer will be used to verify your identity'}
+            />
+
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="What is your grandmother's name?"
+              name="grandmotherName"
+              value={formData.securityQuestions?.grandmotherName || ''}
+              onChange={handleInputChange}
+              error={!!errors.grandmotherName}
+              helperText={errors.grandmotherName || 'This answer will be used to verify your identity'}
+            />
 
             <Button
               type="submit"

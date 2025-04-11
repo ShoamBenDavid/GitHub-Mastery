@@ -8,6 +8,10 @@ export interface RegisterData {
   password: string;
   confirmPassword?: string;  // Optional since it's only used in the form
   role: 'student' | 'lecturer' | 'admin';
+  securityQuestions?: {
+    teacherName: string;
+    grandmotherName: string;
+  };
 }
 
 export interface LoginData {
@@ -19,8 +23,18 @@ export interface ForgotPasswordData {
   email: string;
 }
 
+export interface SecurityQuestionsData {
+  email: string;
+  securityAnswers: {
+    teacherName: string;
+    grandmotherName: string;
+  };
+  newPassword: string;
+}
+
 export interface ResetPasswordData {
   password: string;
+  token?: string;
 }
 
 export interface UpdateProfileData {
@@ -28,6 +42,10 @@ export interface UpdateProfileData {
   email?: string;
   password?: string;
   avatar?: string;
+  securityQuestions?: {
+    teacherName: string;
+    grandmotherName: string;
+  };
 }
 
 // Function to get auth header with token
@@ -43,12 +61,64 @@ const getAuthHeader = () => {
 export const authService = {
   register: async (data: RegisterData) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, data);
+      // Log registration data for debugging
+      console.log('Register data received:', {
+        username: data.username,
+        email: data.email,
+        hasSecurityQuestions: !!data.securityQuestions,
+        securityQuestionFields: data.securityQuestions ? 
+          Object.keys(data.securityQuestions) : []
+      });
+      
+      // Format the request data to match server expectations
+      const requestData: {
+        username: string;
+        email: string;
+        password: string;
+        role: string;
+        securityQuestions?: {
+          teacherName: string;
+          grandmotherName: string;
+        } | null;
+      } = {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        securityQuestions: null
+      };
+      
+      // Only include security questions if both answers are provided
+      if (data.securityQuestions && 
+          data.securityQuestions.teacherName && 
+          data.securityQuestions.teacherName.trim() && 
+          data.securityQuestions.grandmotherName && 
+          data.securityQuestions.grandmotherName.trim()) {
+        
+        // Format security questions properly
+        requestData.securityQuestions = {
+          teacherName: data.securityQuestions.teacherName.trim(),
+          grandmotherName: data.securityQuestions.grandmotherName.trim()
+        };
+        
+        console.log('Including security questions in registration request');
+      } else {
+        console.log('Security questions incomplete or missing - not including in request');
+      }
+      
+      // Log the final request structure
+      console.log('Sending registration with structure:', {
+        fields: Object.keys(requestData),
+        securityQuestionsIncluded: !!requestData.securityQuestions
+      });
+      
+      const response = await axios.post(`${API_URL}/auth/register`, requestData);
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
       }
       return response.data;
     } catch (error: any) {
+      console.error('Registration error:', error.response?.data || error);
       throw new Error(error.response?.data?.message || 'Registration failed');
     }
   },
@@ -158,6 +228,40 @@ export const authService = {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to send password reset email');
+    }
+  },
+
+  resetPasswordBySecurityQuestions: async (data: SecurityQuestionsData) => {
+    try {
+      console.log('Calling resetPasswordBySecurityQuestions with email:', data.email);
+
+      // Log request structure (excluding actual answers for security)
+      console.log('Request structure:', {
+        email: data.email,
+        securityAnswers: {
+          teacherName: data.securityAnswers.teacherName ? 'provided' : 'missing',
+          grandmotherName: data.securityAnswers.grandmotherName ? 'provided' : 'missing'
+        },
+        newPassword: data.newPassword ? 'provided' : 'missing'
+      });
+
+      const response = await axios.post(`${API_URL}/auth/reset-by-security-questions`, {
+        email: data.email,
+        securityAnswers: {
+          teacherName: data.securityAnswers.teacherName,
+          grandmotherName: data.securityAnswers.grandmotherName
+        },
+        newPassword: data.newPassword
+      });
+      
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Security questions reset error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to reset password with security questions');
     }
   },
 

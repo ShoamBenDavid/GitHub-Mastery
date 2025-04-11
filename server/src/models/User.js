@@ -2,6 +2,19 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
+// Define schema for security question
+const securityQuestionSchema = new mongoose.Schema({
+  question: {
+    type: String,
+    required: true
+  },
+  answer: {
+    type: String,
+    required: true,
+    trim: true
+  }
+});
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -30,7 +43,11 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String,
     default: '',
-    maxlength: [500000, 'Avatar image is too large']
+    maxlength: [600000, 'Avatar image is too large']
+  },
+  securityQuestions: {
+    teacherName: securityQuestionSchema,
+    grandmotherName: securityQuestionSchema
   },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
