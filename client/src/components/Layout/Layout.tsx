@@ -119,12 +119,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     sx={{ 
                       bgcolor: 'primary.dark',
                       height: 32,
-                      px: 2,
+                      width: 32,
                       fontSize: '1rem',
                       fontWeight: 500,
                     }}
+                    src={user?.avatar}
                   >
-                    {user?.username}
+                    {!user?.avatar && user?.username?.charAt(0).toUpperCase()}
                   </Avatar>
                 </IconButton>
                 <Menu
@@ -146,7 +147,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <ListItemIcon>
                       <AccountCircleIcon />
                     </ListItemIcon>
-                    <ListItemText primary={user?.username} secondary={user?.role} />
+                    <ListItemText primary="My Profile" secondary={user?.username} />
                   </MenuItem>
                   {user?.role === 'admin' && (
                     <MenuItem onClick={() => navigate('/admin')}>

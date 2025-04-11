@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'lecturer', 'admin'],
     default: 'student'
   },
+  avatar: {
+    type: String,
+    default: '',
+    maxlength: [500000, 'Avatar image is too large']
+  },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
   createdAt: {

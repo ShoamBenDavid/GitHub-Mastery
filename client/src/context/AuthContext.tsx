@@ -1,15 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/authService';
+import { authService, UpdateProfileData } from '../services/authService';
+
+interface User {
+  id?: string;
+  username: string;
+  email: string;
+  role: string;
+  avatar?: string;
+}
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: {
-    username: string;
-    email: string;
-    role: string;
-  } | null;
+  user: User | null;
   login: (userData: any) => void;
   logout: () => void;
+  updateUser: (userData: UpdateProfileData) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,13 +22,14 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   login: () => {},
   logout: () => {},
+  updateUser: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     // Check if user is logged in on component mount
@@ -49,8 +55,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authService.logout();
   };
 
+  const updateUser = async (userData: UpdateProfileData) => {
+    try {
+      const response = await authService.updateProfile(userData);
+      if (response && response.user) {
+        const updatedUser = { ...(user || {}), ...response.user };
+        setUser(updatedUser as User);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

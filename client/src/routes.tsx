@@ -10,6 +10,7 @@ import AdminRoute from './components/Auth/AdminRoute';
 import ResetPassword from './components/Auth/ResetPassword';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AboutUs from './pages/AboutUs';
+import { UserProfile } from './pages/Profile';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -19,6 +20,11 @@ const AppRoutes: React.FC = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/about" element={<AboutUs />} />
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <UserProfile />
+        </ProtectedRoute>
+      } />
       <Route path="/learn" element={
         <ProtectedRoute>
           <LearningHub />

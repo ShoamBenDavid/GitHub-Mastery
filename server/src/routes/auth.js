@@ -112,17 +112,88 @@ router.get('/profile', auth, async (req, res) => {
   }
 });
 
+// Helper function to validate image URL
+const isValidImageUrl = (url) => {
+  if (!url) return true; // Empty URLs are considered valid (no avatar)
+  
+  // Allow data URLs for images (Base64)
+  if (url.startsWith('data:image/') && url.includes('base64,')) {
+    // Verify basic structure of base64 image
+    const base64Pattern = /^data:image\/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+    return base64Pattern.test(url) || url.length > 100; // Simple validation for Base64 content
+  }
+  
+  // Check if URL has common image extensions
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'];
+  const hasImageExtension = imageExtensions.some(ext => 
+    url.toLowerCase().endsWith(ext) || url.toLowerCase().includes(`${ext}?`)
+  );
+  
+  // Allow URLs from common avatar services
+  const allowedDomains = [
+    'gravatar.com',
+    'ui-avatars.com',
+    'avatars.dicebear.com',
+    'robohash.org',
+    'imgur.com',
+    'i.imgur.com',
+    'cloudinary.com'
+  ];
+  
+  const isFromAllowedDomain = allowedDomains.some(domain => 
+    url.toLowerCase().includes(domain)
+  );
+  
+  return hasImageExtension || isFromAllowedDomain;
+};
+
 // Update user profile
 router.patch('/profile', auth, async (req, res) => {
-  const updates = Object.keys(req.body);
-  const allowedUpdates = ['username', 'email', 'password'];
-  const isValidOperation = updates.every(update => allowedUpdates.includes(update));
-
-  if (!isValidOperation) {
-    return res.status(400).json({ message: 'Invalid updates' });
-  }
-
   try {
+    // Enhanced debugging
+    console.log('Profile update request received');
+    console.log('Body content type:', typeof req.body);
+    console.log('Request body keys:', Object.keys(req.body));
+    
+    // Check for non-string values that might cause issues
+    Object.entries(req.body).forEach(([key, value]) => {
+      console.log(`Field ${key} type:`, typeof value);
+      if (typeof value === 'object') {
+        console.log(`Field ${key} contains an object instead of a string`);
+      }
+    });
+
+    const updates = Object.keys(req.body);
+    const allowedUpdates = ['username', 'email', 'password', 'avatar'];
+    
+    // Log for debugging (remove in production)
+    console.log('Requested updates:', updates);
+    
+    const invalidUpdates = updates.filter(update => !allowedUpdates.includes(update));
+    if (invalidUpdates.length > 0) {
+      console.log('Invalid updates detected:', invalidUpdates);
+      return res.status(400).json({ 
+        message: 'Invalid updates', 
+        details: `Fields not allowed: ${invalidUpdates.join(', ')}` 
+      });
+    }
+    
+    // Check if avatar is too large
+    if (req.body.avatar && req.body.avatar.length > 600000) { // Increased to ~600KB limit
+      return res.status(400).json({ 
+        message: 'Avatar image is too large. Please use a smaller image or lower quality.'
+      });
+    }
+    
+    // Validate avatar URL if provided
+    if (req.body.avatar && !isValidImageUrl(req.body.avatar)) {
+      console.log('Avatar validation failed, avatar starts with:', req.body.avatar.substring(0, 30));
+      return res.status(400).json({ 
+        message: 'Invalid avatar URL. Please provide a valid image URL.'
+      });
+    }
+
+    // Apply updates
     updates.forEach(update => req.user[update] = req.body[update]);
     await req.user.save();
     
@@ -132,11 +203,16 @@ router.patch('/profile', auth, async (req, res) => {
         id: req.user._id,
         username: req.user.username,
         email: req.user.email,
-        role: req.user.role
+        role: req.user.role,
+        avatar: req.user.avatar
       }
     });
   } catch (error) {
-    res.status(400).json({ message: 'Error updating profile', error: error.message });
+    console.error('Profile update error:', error);
+    res.status(400).json({ 
+      message: 'Error updating profile', 
+      error: error.message 
+    });
   }
 });
 
