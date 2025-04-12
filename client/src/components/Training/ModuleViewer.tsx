@@ -13,6 +13,8 @@ import {
   Divider,
   IconButton,
   Tooltip,
+  CircularProgress,
+  LinearProgress,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -21,8 +23,9 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { trainingModules } from '../../data/trainingModules';
-import { Exercise, ExerciseStep } from '../../types/training';
+import { Exercise, ExerciseStep, ModuleProgress } from '../../types/training';
 import BranchVisualization from './BranchVisualization';
+import progressService from '../../services/progressService';
 
 const ModuleViewer: React.FC = () => {
   const { moduleId } = useParams<{ moduleId: string }>();
@@ -36,6 +39,9 @@ const ModuleViewer: React.FC = () => {
   const [currentExerciseStep, setCurrentExerciseStep] = useState(0);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [stepFeedback, setStepFeedback] = useState<Array<{ type: 'success' | 'error'; message: string } | null>>([]);
+  const [loading, setLoading] = useState(true);
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
+  const [moduleProgressData, setModuleProgressData] = useState<ModuleProgress | null>(null);
 
   // Reset state when moduleId changes
   useEffect(() => {
@@ -45,12 +51,184 @@ const ModuleViewer: React.FC = () => {
     setCurrentExerciseStep(0);
     setFeedback(null);
     setStepFeedback([]);
+    
+    // Fetch module progress if moduleId is available
+    if (moduleId) {
+      fetchModuleProgress();
+    } else {
+      setLoading(false);
+    }
   }, [moduleId]);
+
+  // Fetch module progress data
+  const fetchModuleProgress = async () => {
+    try {
+      const progressData = await progressService.getModuleProgress(moduleId || '');
+      
+      // Store the progress data for displaying progress
+      setModuleProgressData(progressData);
+      
+      // Check if the progress data needs to be initialized with all exercises
+      let needsUpdate = false;
+      const exercisesToAdd: string[] = [];
+      
+      // Find exercises that exist in the module but not in progress data
+      if (module && module.exercises) {
+        module.exercises.forEach(exercise => {
+          const existingExercise = progressData.exercises?.find(ex => ex.exerciseId === exercise.id);
+          if (!existingExercise) {
+            exercisesToAdd.push(exercise.id);
+            needsUpdate = true;
+          }
+        });
+      }
+      
+      // If we need to initialize exercises, update the progress for each missing exercise
+      if (needsUpdate && exercisesToAdd.length > 0) {
+        for (const exerciseId of exercisesToAdd) {
+          await progressService.updateExerciseProgress(
+            moduleId || '',
+            exerciseId,
+            { completed: false }
+          );
+        }
+        
+        // Fetch the updated progress data
+        const updatedProgressData = await progressService.getModuleProgress(moduleId || '');
+        setModuleProgressData(updatedProgressData);
+        
+        // Initialize completedExercises set from the updated progress data
+        const completedExerciseIds = new Set<string>();
+        if (updatedProgressData && updatedProgressData.exercises) {
+          updatedProgressData.exercises.forEach(exercise => {
+            if (exercise.completed) {
+              completedExerciseIds.add(exercise.exerciseId);
+            }
+          });
+        }
+        
+        setCompletedExercises(completedExerciseIds);
+        
+        // Resume progress - find the right exercise and step to resume from
+        resumeUserProgress(updatedProgressData, completedExerciseIds);
+      } else {
+        // Initialize completedExercises set from the existing progress data
+        const completedExerciseIds = new Set<string>();
+        if (progressData && progressData.exercises) {
+          progressData.exercises.forEach(exercise => {
+            if (exercise.completed) {
+              completedExerciseIds.add(exercise.exerciseId);
+            }
+          });
+        }
+        
+        setCompletedExercises(completedExerciseIds);
+        
+        // Resume progress - find the right exercise and step to resume from
+        resumeUserProgress(progressData, completedExerciseIds);
+      }
+    } catch (error) {
+      console.error('Error fetching module progress:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to determine where to resume the user's progress
+  const resumeUserProgress = (progressData: ModuleProgress, completedExerciseIds: Set<string>) => {
+    if (!module || !progressData || progressData.progress === 0) return;
+    
+    // If the module is partially completed, find where to resume
+    if (progressData.progress > 0 && progressData.progress < 100) {
+      // First, find any incomplete exercise
+      const incompleteExerciseIndex = module.exercises.findIndex(
+        ex => !completedExerciseIds.has(ex.id)
+      );
+      
+      if (incompleteExerciseIndex >= 0) {
+        const incompleteExercise = module.exercises[incompleteExerciseIndex];
+        const exerciseProgress = progressData.exercises.find(ex => ex.exerciseId === incompleteExercise.id);
+        
+        // Set the active step to this exercise
+        setActiveStep(incompleteExerciseIndex + 1); // +1 because step 0 is content
+        
+        // If it's a step-by-step exercise and has partially completed steps
+        if (incompleteExercise.isStepByStep && incompleteExercise.steps && exerciseProgress?.completedSteps?.length) {
+          // Find the last completed step
+          const lastCompletedStepIndex = Math.max(...exerciseProgress.completedSteps);
+          
+          // Resume from the next step after the last completed one
+          if (lastCompletedStepIndex < incompleteExercise.steps.length - 1) {
+            setCurrentExerciseStep(lastCompletedStepIndex + 1);
+            
+            // Also populate any previous step answers from the completed steps
+            if (lastCompletedStepIndex >= 0) {
+              const newStepAnswers = [...Array(incompleteExercise.steps.length)].map(() => '');
+              
+              // For completed steps, put their solution as the answer
+              for (let i = 0; i <= lastCompletedStepIndex; i++) {
+                if (incompleteExercise.steps[i]) {
+                  newStepAnswers[i] = incompleteExercise.steps[i].solution;
+                }
+              }
+              
+              setStepAnswers(newStepAnswers);
+              
+              // Set feedback for all completed steps
+              const newStepFeedback: Array<{ type: 'success' | 'error'; message: string } | null> = 
+                Array(incompleteExercise.steps.length).fill(null);
+              
+              for (let i = 0; i <= lastCompletedStepIndex; i++) {
+                newStepFeedback[i] = {
+                  type: 'success',
+                  message: 'Correct! Proceed to the next step.'
+                };
+              }
+              
+              setStepFeedback(newStepFeedback);
+            }
+          }
+        }
+      }
+    } else if (progressData.progress === 100) {
+      // If the module is completed, show the content view
+      setActiveStep(0);
+    }
+  };
+
+  // Update exercise progress in the backend
+  const updateExerciseProgress = async (exerciseId: string, completed: boolean, completedSteps?: number[]) => {
+    try {
+      const updatedProgress = await progressService.updateExerciseProgress(
+        moduleId || '', 
+        exerciseId, 
+        { completed, completedSteps }
+      );
+      
+      // Update module progress data with latest from server
+      setModuleProgressData(updatedProgress);
+      
+      // Update local state if successful
+      if (completed) {
+        setCompletedExercises(prev => new Set([...Array.from(prev), exerciseId]));
+      }
+    } catch (error) {
+      console.error('Error updating exercise progress:', error);
+    }
+  };
 
   if (!module) {
     return (
       <Box sx={{ p: 4 }}>
         <Typography variant="h4">Module not found</Typography>
+      </Box>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+        <CircularProgress />
       </Box>
     );
   }
@@ -95,6 +273,16 @@ const ModuleViewer: React.FC = () => {
         type: 'success',
         message: 'Correct! Well done!',
       });
+      
+      // Update exercise progress
+      updateExerciseProgress(exercise.id, true);
+      
+      // Update local state to immediately reflect progress
+      setCompletedExercises(prev => {
+        const newSet = new Set([...Array.from(prev), exercise.id]);
+        return newSet;
+      });
+      
       return true;
     }
     setFeedback({
@@ -104,7 +292,7 @@ const ModuleViewer: React.FC = () => {
     return false;
   };
 
-  const validateStepAnswer = (step: ExerciseStep, answer: string, stepIndex: number) => {
+  const validateStepAnswer = (step: ExerciseStep, answer: string, stepIndex: number, exerciseId: string) => {
     // Check if the answer matches the solution for this step
     if (answer.trim() === step.solution.trim()) {
       setStepFeedback((prev) => {
@@ -115,6 +303,18 @@ const ModuleViewer: React.FC = () => {
         };
         return newFeedback;
       });
+      
+      // Get the current exercise
+      const currentExercise = module.exercises[activeStep - 1];
+      
+      // If this is the last step, mark the exercise as completed
+      if (currentExercise && currentExercise.steps && stepIndex === currentExercise.steps.length - 1) {
+        updateExerciseProgress(exerciseId, true, Array.from({ length: stepIndex + 1 }, (_, i) => i));
+      } else {
+        // Otherwise just update the completed steps
+        updateExerciseProgress(exerciseId, false, Array.from({ length: stepIndex + 1 }, (_, i) => i));
+      }
+      
       return true;
     }
     
@@ -158,11 +358,39 @@ const ModuleViewer: React.FC = () => {
   };
 
   const navigateToNextModule = () => {
+    // Mark current module as completed
+    if (moduleId) {
+      progressService.updateModuleProgress(moduleId, { completed: true, progress: 100 })
+        .catch(err => console.error('Error updating module completion:', err));
+    }
+    
     if (nextModuleId) {
       navigate(`/training/${nextModuleId}`);
     } else {
       navigateToHome();
     }
+  };
+
+  // Calculate module progress
+  const getModuleProgress = (): number => {
+    // Use the progress value from the API if available
+    if (moduleProgressData && typeof moduleProgressData.progress === 'number') {
+      return moduleProgressData.progress;
+    }
+    
+    // Fall back to calculating based on completed exercises
+    if (!module?.exercises || module.exercises.length === 0) return 100;
+    
+    const totalExercises = module.exercises.length;
+    const completed = completedExercises.size;
+    
+    // Using Math.round to ensure 2/3 becomes 67%
+    return Math.round((completed / totalExercises) * 100);
+  };
+
+  // Format progress percentage text
+  const getProgressText = (): string => {
+    return `${getModuleProgress()}%`;
   };
 
   const renderStepByStepExercise = (exercise: Exercise) => {
@@ -211,40 +439,31 @@ const ModuleViewer: React.FC = () => {
                 padding: '12px',
               },
             }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: '#30363d',
-                },
-                '&:hover fieldset': {
-                  borderColor: '#58a6ff',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#58a6ff',
-                },
-              },
-            }}
           />
-          
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+          <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'space-between' }}>
             <Button
               variant="contained"
-              onClick={() => validateStepAnswer(currentStep, stepAnswers[currentExerciseStep] || '', currentExerciseStep)}
+              onClick={() => validateStepAnswer(currentStep, stepAnswers[currentExerciseStep] || '', currentExerciseStep, exercise.id)}
               sx={{
-                bgcolor: '#2ea44f',
+                bgcolor: '#F05133', // Changed to Git orange
                 '&:hover': {
-                  bgcolor: '#2c974b',
+                  bgcolor: '#d03b1f',
                 },
               }}
             >
-              Check Step
+              Check Answer
             </Button>
-            
-            {stepFeedback[currentExerciseStep]?.type === 'success' && currentExerciseStep < exercise.steps.length - 1 && (
+            {currentExerciseStep < exercise.steps.length - 1 && stepFeedback[currentExerciseStep]?.type === 'success' && (
               <Button
                 variant="contained"
-                color="success"
                 onClick={handleStepNext}
+                sx={{
+                  bgcolor: '#2ea44f',
+                  color: '#ffffff',
+                  '&:hover': {
+                    bgcolor: '#2c974b',
+                  },
+                }}
               >
                 Next Step
               </Button>
@@ -303,7 +522,6 @@ const ModuleViewer: React.FC = () => {
             )}
           </Box>
           
-          {/* Display exercise hints */}
           <Box sx={{ mt: 3, mb: 2 }}>
             {exercise.hints && exercise.hints.map((hint, index) => (
               <Box key={index} sx={{ mb: 1 }}>
@@ -368,8 +586,13 @@ const ModuleViewer: React.FC = () => {
         <Divider sx={{ my: 2 }} />
         
         <Typography variant="subtitle2" color="text.secondary">
-          Progress: {currentExerciseStep + 1} of {exercise.steps.length} steps completed
+          {getProgressText()}
         </Typography>
+        <LinearProgress 
+          variant="determinate" 
+          value={getModuleProgress()} 
+          sx={{ mt: 1 }}
+        />
       </Box>
     );
   };
@@ -381,6 +604,17 @@ const ModuleViewer: React.FC = () => {
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h4">{module.title}</Typography>
+      </Box>
+
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" color="text.secondary">
+          {getProgressText()}
+        </Typography>
+        <LinearProgress 
+          variant="determinate" 
+          value={getModuleProgress()} 
+          sx={{ mt: 1, mb: 3 }}
+        />
       </Box>
 
       <Stepper 
@@ -400,7 +634,7 @@ const ModuleViewer: React.FC = () => {
         </Step>
         {module.exercises.map((exercise, index) => (
           <Step key={exercise.id}>
-            <StepLabel>Exercise {index + 1}</StepLabel>
+            <StepLabel>{completedExercises.has(exercise.id) && <CheckIcon />} Exercise {index + 1}</StepLabel>
           </Step>
         ))}
       </Stepper>
@@ -432,9 +666,9 @@ const ModuleViewer: React.FC = () => {
           <Box>
             <ReactMarkdown>{module.content}</ReactMarkdown>
             {module.visualization && (
-              <Box sx={{ mt: 4 }}>
+              <Box sx={{ mt: 4, mb: 4 }}>
                 <Typography variant="h6" gutterBottom>
-                  Branch Visualization
+                  Visualization
                 </Typography>
                 <BranchVisualization initialData={module.visualization} />
               </Box>
@@ -463,16 +697,14 @@ const ModuleViewer: React.FC = () => {
                       </Typography>
                       <TextField
                         fullWidth
-                        multiline
-                        rows={3}
                         value={userAnswer}
                         onChange={(e) => setUserAnswer(e.target.value)}
                         placeholder="Enter your Git command here..."
                         variant="outlined"
                         InputProps={{
                           sx: {
-                            backgroundColor: '#010409', // Darker terminal background
-                            color: '#e6edf3', // Light terminal text
+                            backgroundColor: '#010409',
+                            color: '#e6edf3',
                             fontFamily: '"Roboto Mono", "Consolas", monospace',
                             '&::placeholder': {
                               color: '#8b949e',
@@ -489,24 +721,97 @@ const ModuleViewer: React.FC = () => {
                             padding: '12px',
                           },
                         }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            '& fieldset': {
-                              borderColor: '#30363d',
-                            },
-                            '&:hover fieldset': {
-                              borderColor: '#58a6ff',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#58a6ff',
-                            },
-                          },
-                        }}
                       />
                     </Box>
 
-                    <Box sx={{ mb: 3 }}>
-                      {module.exercises[activeStep - 1].hints.map((hint, index) => (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <Button
+                        variant="contained"
+                        onClick={() => validateAnswer(module.exercises[activeStep - 1])}
+                        sx={{
+                          alignSelf: 'flex-start',
+                          bgcolor: '#F05133', // Changed to Git orange
+                          '&:hover': {
+                            bgcolor: '#d03b1f',
+                          },
+                        }}
+                      >
+                        Check Answer
+                      </Button>
+
+                      {feedback && (
+                        <Alert
+                          severity={feedback.type}
+                          sx={{ mt: 2 }}
+                          action={
+                            feedback.type === 'success' && <CheckIcon color="success" />
+                          }
+                        >
+                          {feedback.message}
+                        </Alert>
+                      )}
+
+                      {feedback?.type === 'success' && (
+                        <>
+                          {activeStep < module.exercises.length ? (
+                            <Button
+                              variant="contained"
+                              color="success"
+                              onClick={handleNext}
+                              sx={{
+                                alignSelf: 'flex-start',
+                                mt: 2,
+                                bgcolor: '#2ea44f',
+                                '&:hover': {
+                                  bgcolor: '#2c974b',
+                                },
+                              }}
+                            >
+                              Next Exercise
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="contained"
+                              color="success"
+                              onClick={navigateToNextModule}
+                              sx={{
+                                alignSelf: 'flex-start',
+                                mt: 2,
+                                bgcolor: '#2ea44f',
+                                '&:hover': {
+                                  bgcolor: '#2c974b',
+                                },
+                              }}
+                            >
+                              {nextModuleId ? 
+                                (nextModulesByPrereq.length > 0 ? 
+                                  `Complete & Start ${nextModulesByPrereq[0].title} Module` : 
+                                  'Complete Module & Start Next Module') : 
+                                'Complete Module & Return Home'}
+                            </Button>
+                          )}
+                          <Button
+                            variant="outlined"
+                            onClick={navigateToHome}
+                            sx={{
+                              alignSelf: 'flex-start',
+                              mt: 1,
+                              borderColor: '#30363d',
+                              color: '#c9d1d9',
+                              '&:hover': {
+                                borderColor: '#8b949e',
+                                bgcolor: 'rgba(110, 118, 129, 0.1)',
+                              },
+                            }}
+                          >
+                            Back to Home
+                          </Button>
+                        </>
+                      )}
+                    </Box>
+
+                    <Box sx={{ mt: 4 }}>
+                      {module.exercises[activeStep - 1].hints && module.exercises[activeStep - 1].hints.map((hint, index) => (
                         <Box key={index} sx={{ mb: 1 }}>
                           <Button
                             startIcon={<HintIcon />}
@@ -524,43 +829,37 @@ const ModuleViewer: React.FC = () => {
                               bgcolor: 'rgba(240, 81, 51, 0.1)',
                               borderRadius: '0 4px 4px 0'
                             }}>
-                              {hint}
+                              {module.exercises[activeStep - 1].hints[index]}
                             </Typography>
                           )}
                         </Box>
                       ))}
                     </Box>
-
-                    {feedback && (
-                      <Alert
-                        severity={feedback.type}
-                        sx={{ mb: 3 }}
-                        action={
-                          feedback.type === 'success' && (
-                            <CheckIcon color="success" />
-                          )
-                        }
-                      >
-                        {feedback.message}
-                      </Alert>
-                    )}
                   </>
                 )}
               </>
             ) : (
-              <Typography variant="h5">
-                Exercise not found. Please go back and select a different exercise.
-              </Typography>
+              <Typography>Exercise not found</Typography>
             )}
           </Box>
         )}
       </Paper>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>
         <Button onClick={handleBack} startIcon={<ArrowBackIcon />}>
           {activeStep === 0 ? 'Back to Modules' : 'Previous'}
         </Button>
-        {activeStep === 0 ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Typography variant="subtitle2" color="text.secondary">
+            {getProgressText()}
+          </Typography>
+          <LinearProgress 
+            variant="determinate" 
+            value={getModuleProgress()} 
+            sx={{ mt: 1, width: '200px' }}
+          />
+        </Box>
+        {activeStep === 0 && (
           <Button
             variant="contained"
             onClick={handleNext}
@@ -568,71 +867,6 @@ const ModuleViewer: React.FC = () => {
           >
             Start Exercises
           </Button>
-        ) : (
-          <Box>
-            {module.exercises[activeStep - 1] && !module.exercises[activeStep - 1].isStepByStep && (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={() => validateAnswer(module.exercises[activeStep - 1])}
-                  sx={{ mr: 2 }}
-                >
-                  Check Answer
-                </Button>
-                {feedback?.type === 'success' && (
-                  <>
-                    {activeStep < module.exercises.length ? (
-                      <Button
-                        variant="contained"
-                        color="success"
-                        onClick={handleNext}
-                        sx={{
-                          bgcolor: '#2ea44f',
-                          '&:hover': {
-                            bgcolor: '#2c974b',
-                          },
-                        }}
-                      >
-                        Next Exercise
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        color="success"
-                        onClick={navigateToNextModule}
-                        sx={{
-                          bgcolor: '#2ea44f',
-                          '&:hover': {
-                            bgcolor: '#2c974b',
-                          },
-                        }}
-                      >
-                        {nextModuleId ? 
-                          (nextModulesByPrereq.length > 0 ? 
-                            `Complete & Start ${nextModulesByPrereq[0].title} Module` : 
-                            'Complete Module & Start Next Module') : 
-                          'Complete Module & Return Home'}
-                      </Button>
-                    )}
-                    <Button
-                      variant="outlined"
-                      onClick={navigateToHome}
-                      sx={{
-                        borderColor: '#30363d',
-                        color: '#c9d1d9',
-                        '&:hover': {
-                          borderColor: '#8b949e',
-                          bgcolor: 'rgba(110, 118, 129, 0.1)',
-                        },
-                      }}
-                    >
-                      Back to Home
-                    </Button>
-                  </>
-                )}
-              </>
-            )}
-          </Box>
         )}
       </Box>
     </Box>

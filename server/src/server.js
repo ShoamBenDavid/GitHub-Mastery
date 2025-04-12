@@ -6,6 +6,7 @@ require('dotenv').config();
 // Import routes
 const authRoutes = require('./routes/auth');
 const tutorialRoutes = require('./routes/tutorials');
+const progressRoutes = require('./routes/progress');
 
 // Create Express app
 const app = express();
@@ -31,6 +32,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tutorials', tutorialRoutes);
+app.use('/api/progress', progressRoutes);
 
 // Basic route for testing
 app.get('/api/test', (req, res) => {

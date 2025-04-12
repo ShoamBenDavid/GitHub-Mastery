@@ -39,7 +39,19 @@ export interface Module {
 
 export interface ModuleProgress {
   moduleId: string;
+  userId?: string;
   completed: boolean;
-  exercisesCompleted: string[];
+  progress: number;
+  exercises: ExerciseProgress[];
+  startedAt?: Date;
   lastAccessed: Date;
+  completedAt?: Date;
+}
+
+export interface ExerciseProgress {
+  exerciseId: string;
+  completed: boolean;
+  completedSteps?: number[];
+  startedAt?: Date;
+  completedAt?: Date;
 } 
