@@ -37,48 +37,52 @@ interface TeamMember {
 const AboutUs: React.FC = () => {
   const teamMembers: TeamMember[] = [
     {
-      name: "Alex Johnson",
-      role: "Founder & Lead Developer",
-      image: "https://randomuser.me/api/portraits/men/32.jpg",
-      bio: "Git expert with over 10 years of experience in version control systems and software development.",
+      name: "Dor Harush",
+      role: "SCE student",
+      image: "/images/team/dor-harush.jpg",
+      bio: "Full stack developer with expertise in React and Node.js, leading the Git Mastery project development.",
       social: {
-        linkedin: "https://linkedin.com/in/alexjohnson",
-        github: "https://github.com/alexj",
-        facebook: "https://facebook.com/alexj",
-        email: "alex@gitmastery.com"
+        github: "https://github.com/dor404",
+        email: "dorha5@ac.sce.ac.il"
       }
     },
     {
-      name: "Sarah Chen",
-      role: "Education Director",
-      image: "https://randomuser.me/api/portraits/women/44.jpg",
-      bio: "Former CS professor with a passion for creating accessible learning experiences for developers.",
+      name: "Shoam Ben David",
+      role: "SCE student",
+      image: "/images/team/shoam-ben-david.jpg",
+      bio: "Backend developer focused on creating robust and scalable server-side solutions.",
       social: {
-        linkedin: "https://linkedin.com/in/sarahchen",
-        github: "https://github.com/sarahc",
-        email: "sarah@gitmastery.com"
+        github: "https://github.com/ShoamBenDavid",
+        email: "shoambe@ac.sce.ac.il"
       }
     },
     {
-      name: "Michael Rodriguez",
-      role: "Content Creator",
-      image: "https://randomuser.me/api/portraits/men/67.jpg",
-      bio: "Technical writer and Git enthusiast focused on creating clear, concise tutorials for all skill levels.",
+      name: "Itay Rozilyo",
+      role: "SCE student",
+      image: "/images/team/itay-rozilyo.jpg",
+      bio: "Frontend specialist with a passion for creating intuitive and responsive user interfaces.",
       social: {
-        github: "https://github.com/mrodriguez",
-        facebook: "https://facebook.com/mrodriguez",
-        email: "michael@gitmastery.com"
+        github: "https://github.com/itayrozilyo",
+        email: "itayro@ac.sce.ac.il"
       }
     },
     {
-      name: "Priya Patel",
-      role: "UX/UI Designer",
-      image: "https://randomuser.me/api/portraits/women/63.jpg",
-      bio: "Designer with expertise in creating intuitive user experiences for educational platforms.",
+      name: "Asif Perets",
+      role: "SCE student",
+      image: "/images/team/asif-perets.jpg",
+      bio: "Full stack developer with expertise in modern web technologies and user experience design.",
       social: {
-        linkedin: "https://linkedin.com/in/priyapatel",
-        facebook: "https://facebook.com/priyap",
-        email: "priya@gitmastery.com"
+        github: "https://github.com/asifpe13",
+        email: "asifpe@ac.sce.ac.il"
+      }
+    },
+    {
+      name: "Ilay Golan",
+      role: "UI/UX Designer",
+      image: "/images/team/ilay-golan.jpg",
+      bio: "Creative UI/UX designer with a keen eye for aesthetics and user experience, responsible for the interface design of Git Mastery.",
+      social: {
+        email: "ilaygo@ac.sce.ac.il"
       }
     }
   ];
@@ -101,9 +105,7 @@ const AboutUs: React.FC = () => {
           as smooth as possible.
         </Typography>
         <Typography paragraph sx={{ maxWidth: '800px', mx: 'auto' }}>
-          Founded in 2023, our team of experienced developers and educators has created
-          a platform that combines interactive tutorials, hands-on exercises, and real-world
-          simulations to help you build confidence and proficiency with Git.
+          We are a group of 5 developers working on a project in SCE college, dedicated to creating an educational platform for Git and Github.
         </Typography>
       </Box>
       
@@ -199,6 +201,75 @@ const AboutUs: React.FC = () => {
               </Card>
             </Grid>
           ))}
+        </Grid>
+      </Box>
+      
+      {/* Our Technology Stack Section */}
+      <Box sx={{ mb: 8, textAlign: 'center' }}>
+        <Typography variant="h4" component="h2" gutterBottom>
+          Our Technology Stack
+        </Typography>
+        <Divider sx={{ mb: 4 }} />
+        <Typography variant="h6" paragraph sx={{ maxWidth: '800px', mx: 'auto', mb: 4 }}>
+          Git Mastery is built on the powerful MERN stack
+        </Typography>
+        
+        <Grid container spacing={4} justifyContent="center">
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={3} sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Typography variant="h5" gutterBottom color="primary.main">
+                MongoDB
+              </Typography>
+              <Box sx={{ mb: 2, width: '80px', height: '80px' }}>
+                <img src="/images/tech/mongodb.webp" alt="MongoDB" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </Box>
+              <Typography variant="body2">
+                A NoSQL database that provides high performance, high availability, and easy scalability for our application data.
+              </Typography>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={3} sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Typography variant="h5" gutterBottom color="primary.main">
+                Express.js
+              </Typography>
+              <Box sx={{ mb: 2, width: '80px', height: '80px' }}>
+                <img src="/images/tech/express.png" alt="Express.js" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </Box>
+              <Typography variant="body2">
+                A minimal and flexible Node.js web application framework that provides robust features for web and mobile applications.
+              </Typography>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={3} sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Typography variant="h5" gutterBottom color="primary.main">
+                React
+              </Typography>
+              <Box sx={{ mb: 2, width: '80px', height: '80px' }}>
+                <img src="/images/tech/react.png" alt="React" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </Box>
+              <Typography variant="body2">
+                A JavaScript library for building user interfaces with a component-based architecture for creating reusable UI components.
+              </Typography>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={3} sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Typography variant="h5" gutterBottom color="primary.main">
+                Node.js
+              </Typography>
+              <Box sx={{ mb: 2, width: '80px', height: '80px' }}>
+                <img src="/images/tech/nodejs.png" alt="Node.js" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </Box>
+              <Typography variant="body2">
+                A JavaScript runtime built on Chrome's V8 JavaScript engine, used for building fast and scalable server-side applications.
+              </Typography>
+            </Paper>
+          </Grid>
         </Grid>
       </Box>
       
